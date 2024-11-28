@@ -167,7 +167,8 @@ function multiScaleTemplateMatching(src) {
   let bestMatch = {name: null, maxVal: 0, scale: 1, angle: 0, matchLoc: null};
 
   let result = new cv.Mat();
-  precomputedLogos.forEach(logo => {
+  for (let i = 0; i < precomputedLogos.length; i++) {
+    let logo = precomputedLogos[i];
     cv.matchTemplate(src, logo.mat, result, cv.TM_CCOEFF_NORMED);
     let minMax = cv.minMaxLoc(result);
     if (typeof minMax.maxVal === 'number' && minMax.maxVal > logo.threshold) {
@@ -179,9 +180,9 @@ function multiScaleTemplateMatching(src) {
         matchLoc: minMax.maxLoc,
         threshold: logo.threshold
       };
-      
+      break;
     }
-  });
+  }
   result.delete();
   
   return bestMatch;
