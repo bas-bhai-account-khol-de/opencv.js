@@ -20,7 +20,7 @@
         </div>
       </td>
       <td>
-        <div>Select Filter:</div>
+        <!-- <div>Select Filter:</div> -->
       </td>
       <td></td>
     </tr>
@@ -28,6 +28,7 @@
       <td></td>
       <td>
         <canvas class="center-block" id="canvasOutput" width=320 height=240></canvas>
+        <canvas class="center-block" id="canvasOutput2" width=300 height=300></canvas>
       </td>
       <td>
         <div id="guiContainer"></div>
@@ -46,7 +47,7 @@
 <script>
 var featuresReady = checkFeatures(document.getElementById("info"), {webrtc: true, wasm: true});
 </script>
-<script src="js/index.js"></script>
+<script src="js/index_temp.js"></script>
 <script>
 var Module = {
   wasmBinaryFile: '../../build/wasm/opencv_js.wasm',
@@ -54,15 +55,6 @@ var Module = {
 };
 </script>
 <script async src="../../build/wasm/opencv.js"></script>
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
 
-  ga('create', 'UA-104754587-1', 'auto');
-  ga('send', 'pageview');
-
-</script>
 </body>
 </html>
