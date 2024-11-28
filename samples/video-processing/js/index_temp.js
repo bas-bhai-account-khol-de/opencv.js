@@ -22,18 +22,25 @@ const list_logos = [
   {
       name: "BOI",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/BOI_black_cropped.jpg",
-      threshold: 5
+      threshold: 0.6,
+      greyscale_threshold: 80,
+      scale: 1.3
   },
-  // {
-  //     name: "BOB",
-  //     url: "https://storage.googleapis.com/avatar-system/test/Logos/Logos%20_BOB.png",
-  //     threshold: 10
-  // },
-  // {
-  //     name: "hdfc",
-  //     url: "https://storage.googleapis.com/avatar-system/test/Logos/HDFC_blck_cropped.jpg",
-  //     threshold: 5
-  // },
+  
+  {
+      name: "AXIS",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/Logos%20_Axis-Bank_cropped.jpg",
+      threshold: 0.53,
+      greyscale_threshold: 100,
+      scale: 1.5
+  },
+  {
+      name: "hdfc",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/Logos%20_HDFC_cropped.jpg",
+      threshold: 0.51,
+      greyscale_threshold: 100,
+      scale: 1.8
+  },
 ];
 
 // let resolution = window.innerWidth < 640 ? qvga : vga;
@@ -68,7 +75,13 @@ function startCamera() {
   list_logos.forEach(logo => {
     loadImageFromUrl(logo.url, function(mat) {
       // cv.resize(mat, mat, new cv.Size(100, 100));
-      logoMats.push({name: logo.name, mat: dilate(canny(mat),3), threshold: logo.threshold});
+    //  try{ 
+      console.log("recived" , logo.name);
+      logoMats.push({name: logo.name, mat: preprocessTemplate(mat,logo.greyscale_threshold), threshold: logo.threshold , scale: logo.scale , greyscale_threshold: logo.greyscale_threshold});
+    // }
+    //  catch(e){
+    //    console.log(e);
+    //   }
       imagesLoaded++;
       if (imagesLoaded === list_logos.length) {
         proceedWithCamera();
@@ -77,7 +90,8 @@ function startCamera() {
   });
 
   function proceedWithCamera() {
-    cv.imshow("canvasOutput2", logoMats[0].mat);
+    
+    // cv.imshow("canvasOutput2", logoMats[0].mat);
     if (streaming) return;
     navigator.mediaDevices.getUserMedia({video: resolution, audio: false})
       .then(function(s) {
@@ -101,30 +115,6 @@ function startCamera() {
       startVideoProcessing();
     }, false);
   }
-
-
-  if (streaming) return;
-  navigator.mediaDevices.getUserMedia({video: resolution, audio: false})
-    .then(function(s) {
-    stream = s;
-    video.srcObject = s;
-    video.play();
-  })
-    .catch(function(err) {
-    console.log("An error occured! " + err);
-  });
-
-  video.addEventListener("canplay", function(ev){
-    if (!streaming) {
-      height = video.videoHeight;
-      width = video.videoWidth;
-      video.setAttribute("width", width);
-      video.setAttribute("height", height);
-      streaming = true;
-      vc = new cv.VideoCapture(video);
-    }
-    startVideoProcessing();
-  }, false);
 }
 
 let src = null;
@@ -149,9 +139,18 @@ function passThrough(src) {
   return src;
 }
 
+
+function preprocessTemplate(src,greyscale_threshold){
+  let result;
+  result=gray(src);
+  result=threshold(result,greyscale_threshold);
+
+  return result;
+}
+
 function gray(src) {
-  cv.cvtColor(src, dstC1, cv.COLOR_RGBA2GRAY);
-  return dstC1;
+  cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY);
+  return src;
 }
 
 
@@ -159,9 +158,10 @@ function dilate(src,kernal_size=2) {
   let ksize = new cv.Size(kernal_size, kernal_size);
   let anchor = new cv.Point(-1, -1);
   let kernel = cv.getStructuringElement(cv.MORPH_RECT, ksize);
-  cv.dilate(src, dstC4, kernel, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+  cv.dilate(src, src, kernel, anchor, 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+
   return src;
-  return dstC4;
+  // return dstC4;
 }
 
 function gaussianBlur(src) {
@@ -172,12 +172,12 @@ function canny(src) {
   cv.cvtColor(src, dstC1, cv.COLOR_RGBA2GRAY);
   cv.Canny(dstC1, dstC1, 50, 80, 3, false);
   return src;
-  return dstC1;
+  // return dstC1;
 }
 
-function threshold(src) {
-  cv.threshold(src, dstC4, controls.thresholdValue, 200, cv.THRESH_BINARY);
-  return dstC4;
+function threshold(src, threshold=80) {
+  cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
+  return src;
 }
 
 function adaptiveThreshold(src) {
@@ -196,6 +196,7 @@ function multiScaleTemplateMatching(src) {
   let rotatedLogo = new cv.Mat();
   logoMats.forEach(logo => {
     scales.forEach(scale => {
+      scale = logo.scale*scale;
       angles.forEach(angle => {
         
         cv.resize(logo.mat, resizedLogo, new cv.Size(), scale, scale, cv.INTER_LINEAR);
@@ -205,13 +206,15 @@ function multiScaleTemplateMatching(src) {
         let result = new cv.Mat();
         cv.matchTemplate(src, rotatedLogo, result, cv.TM_CCOEFF_NORMED);
         let minMax = cv.minMaxLoc(result);
-        if (minMax.maxVal > bestMatch.maxVal && minMax.maxVal >= logo.threshold / 100) {
+        // console.log(logo.threshold);
+        if (typeof minMax.maxVal === 'number' && minMax.maxVal > logo.threshold) {
           bestMatch = {
             name: logo.name,
             maxVal: minMax.maxVal,
             scale: scale,
             angle: angle,
-            matchLoc: minMax.maxLoc
+            matchLoc: minMax.maxLoc,
+            threshold: logo.threshold
           };
         }
         // resizedLogo.delete();
@@ -232,7 +235,7 @@ function drawBoundingBox(src, match) {
     cv.cvtColor(src, src, cv.COLOR_GRAY2RGBA);
   }
   
-  if (match.name && match.maxVal > 0.51) {
+  if (match.name && match.maxVal > match.threshold) {
     let point1 = new cv.Point(match.matchLoc.x, match.matchLoc.y);
     let point2 = new cv.Point(match.matchLoc.x + logoMats[0].mat.cols * match.scale, match.matchLoc.y + logoMats[0].mat.rows * match.scale);
     cv.rectangle(src, point1, point2, [0, 255, 0, 255], 2);
@@ -246,7 +249,7 @@ function processVideo() {
   stats.begin();
   vc.read(src);
   let result;
-  result = dilate(canny(src));
+  result = dilate(threshold(gray(src),150));
   let bm =multiScaleTemplateMatching(result);
   drawBoundingBox(result, bm);
   console.log(bm);
@@ -291,6 +294,11 @@ function opencvIsReady() {
   }
   info.innerHTML = '';
   container.className = '';
+
+  //init variabels 
+  
+
+
   initUI();
   startCamera();
 
