@@ -194,11 +194,13 @@ function multiScaleTemplateMatching(src) {
   let angles = [0,10,-10];
   let resizedLogo = new cv.Mat();
   let rotatedLogo = new cv.Mat();
-  logoMats.forEach(logo => {
-    scales.forEach(scale => {
-      scale = logo.scale*scale;
-      angles.forEach(angle => {
-        
+  for (let i = 0; i < logoMats.length; i++) {
+    let logo = logoMats[i];
+    for (let j = 0; j < scales.length; j++) {
+      let scale = logo.scale * scales[j];
+      for (let k = 0; k < angles.length; k++) {
+        let angle = angles[k];
+
         cv.resize(logo.mat, resizedLogo, new cv.Size(), scale, scale, cv.INTER_LINEAR);
         cv.getRotationMatrix2D(new cv.Point(resizedLogo.cols / 2, resizedLogo.rows / 2), angle, 1.0).copyTo(rotatedLogo);
         cv.warpAffine(resizedLogo, rotatedLogo, rotatedLogo, new cv.Size(resizedLogo.cols, resizedLogo.rows));
@@ -206,7 +208,6 @@ function multiScaleTemplateMatching(src) {
         let result = new cv.Mat();
         cv.matchTemplate(src, rotatedLogo, result, cv.TM_CCOEFF_NORMED);
         let minMax = cv.minMaxLoc(result);
-        // console.log(logo.threshold);
         if (typeof minMax.maxVal === 'number' && minMax.maxVal > logo.threshold) {
           bestMatch = {
             name: logo.name,
@@ -215,14 +216,14 @@ function multiScaleTemplateMatching(src) {
             angle: angle,
             matchLoc: minMax.maxLoc,
             threshold: logo.threshold
+            
           };
+          break;
         }
-        // resizedLogo.delete();
-        // rotatedLogo.delete();
         result.delete();
-      });
-    });
-  });
+      }
+    }
+  }
 
   return bestMatch;
 }
