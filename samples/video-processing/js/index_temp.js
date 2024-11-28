@@ -41,6 +41,13 @@ const list_logos = [
       greyscale_threshold: 100,
       scale: 1.8
   },
+  {
+      name: "SBI",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/Logos%20_SBI-1_inverted.jpg",
+      threshold: 0.55,
+      greyscale_threshold: 100,
+      scale: 1.8
+  },
 ];
 
 // let resolution = window.innerWidth < 640 ? qvga : vga;
@@ -175,6 +182,10 @@ function canny(src) {
   // return dstC1;
 }
 
+function invertColors(src) {
+  cv.bitwise_not(src, src);
+  return src;
+}
 function threshold(src, threshold=80) {
   cv.threshold(src, src, threshold, 255, cv.THRESH_BINARY);
   return src;
