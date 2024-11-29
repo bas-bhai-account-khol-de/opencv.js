@@ -36,6 +36,42 @@ const list_logos = [
   },
 ];
 
+const list_rupay_symbols = [
+  {
+      name: "Rupay",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_white_cropped.jpg",
+      threshold: 0.6,
+      greyscale_threshold: 80,
+      scale: 1
+  },
+  {
+      name: "Rupay",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_black_cropped.jpg",
+      threshold: 0.6,
+      greyscale_threshold: 200,
+      scale: 1
+  },
+
+];
+
+const list_nfc_symbols = [
+  {
+      name: "NFC",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/NFC_black.jpg",
+      threshold: 0.55,
+      greyscale_threshold: 80,
+      scale: 1.1
+  },
+  {
+      name: "NFC",
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/NFC_white.jpg",
+      threshold: 0.55,
+      greyscale_threshold: 200,
+      scale: 1.1
+  },
+
+];
+
 let resolution = qvga;
 
 let streaming = false;
@@ -58,10 +94,15 @@ function loadImageFromUrl(url, callback) {
 }
 
 let logoMats = [];
+let rupayMats = [];
+let NFCMats = [];
 let precomputedLogos = [];
+let precomputedRupay = [];
+let precomputedNFC = [];
 
 function startCamera() {
   let imagesLoaded = 0;
+
 
   list_logos.forEach(logo => {
     loadImageFromUrl(logo.url, function(mat) {
@@ -71,12 +112,43 @@ function startCamera() {
       precomputeScalesAndRotations(logo, processedMat);
       imagesLoaded++;
       if (imagesLoaded === list_logos.length) {
-        proceedWithCamera();
+        get_rupay();
       }
     });
   });
 
+function get_rupay(){
+  imagesLoaded = 0;
+  list_rupay_symbols.forEach(symbol => {
+  loadImageFromUrl(symbol.url, function(mat) {
+    console.log("received", symbol.name);
+    let processedMat = preprocessTemplate(mat, symbol.greyscale_threshold);
+    rupayMats.push({name: symbol.name, mat: processedMat, threshold: symbol.threshold, scale: symbol.scale, greyscale_threshold: symbol.greyscale_threshold});
+    precomputeScalesAndRotationsRupay(symbol, processedMat);
+    imagesLoaded++;
+    if (imagesLoaded === list_rupay_symbols.length) {
+      get_NFC();
+    }
+  });
+});
+}
+function get_NFC(){
+  imagesLoaded = 0;
+  list_nfc_symbols.forEach(symbol => {
+  loadImageFromUrl(symbol.url, function(mat) {
+    console.log("received", symbol.name);
+    let processedMat = preprocessTemplate(mat, symbol.greyscale_threshold);
+    NFCMats.push({name: symbol.name, mat: processedMat, threshold: symbol.threshold, scale: symbol.scale, greyscale_threshold: symbol.greyscale_threshold});
+    precomputeScalesAndRotationsNFC(symbol, processedMat);
+    imagesLoaded++;
+    if (imagesLoaded === list_rupay_symbols.length) {
+      proceedWithCamera();
+    }
+  });
+});
+}
   function proceedWithCamera() {
+    cv.imshow("canvasOutput2", rupayMats[0].mat);
     if (streaming) return;
     navigator.mediaDevices.getUserMedia({video: resolution, audio: false})
       .then(function(s) {
@@ -116,6 +188,47 @@ function precomputeScalesAndRotations(logo, mat) {
       let rotationMatrix = cv.getRotationMatrix2D(new cv.Point(resizedLogo.cols / 2, resizedLogo.rows / 2), angle, 1.0);
       cv.warpAffine(resizedLogo, rotatedLogo, rotationMatrix, new cv.Size(resizedLogo.cols, resizedLogo.rows));
       precomputedLogos.push({name: logo.name, mat: rotatedLogo.clone(), threshold: logo.threshold, scale:  scale, angle: angle});
+    });
+  });
+
+  resizedLogo.delete();
+  rotatedLogo.delete();
+}
+
+function precomputeScalesAndRotationsRupay(logo, mat) {
+  let scales = [0.3, 0.25,0.15];
+  let angles = [0];
+  let resizedLogo = new cv.Mat();
+  let rotatedLogo = new cv.Mat();
+
+  scales.forEach(scale => {
+    scale= logo.scale * scale;
+    angles.forEach(angle => {
+
+      cv.resize(mat, resizedLogo, new cv.Size(),  scale,  scale, cv.INTER_LINEAR);
+      let rotationMatrix = cv.getRotationMatrix2D(new cv.Point(resizedLogo.cols / 2, resizedLogo.rows / 2), angle, 1.0);
+      cv.warpAffine(resizedLogo, rotatedLogo, rotationMatrix, new cv.Size(resizedLogo.cols, resizedLogo.rows));
+      precomputedRupay.push({name: logo.name, mat: rotatedLogo.clone(), threshold: logo.threshold, scale:  scale, angle: angle});
+    });
+  });
+
+  resizedLogo.delete();
+  rotatedLogo.delete();
+}
+function precomputeScalesAndRotationsNFC(logo, mat) {
+  let scales = [0.3, 0.25,0.15];
+  let angles = [0];
+  let resizedLogo = new cv.Mat();
+  let rotatedLogo = new cv.Mat();
+
+  scales.forEach(scale => {
+    scale= logo.scale * scale;
+    angles.forEach(angle => {
+
+      cv.resize(mat, resizedLogo, new cv.Size(),  scale,  scale, cv.INTER_LINEAR);
+      let rotationMatrix = cv.getRotationMatrix2D(new cv.Point(resizedLogo.cols / 2, resizedLogo.rows / 2), angle, 1.0);
+      cv.warpAffine(resizedLogo, rotatedLogo, rotationMatrix, new cv.Size(resizedLogo.cols, resizedLogo.rows));
+      precomputedNFC.push({name: logo.name, mat: rotatedLogo.clone(), threshold: logo.threshold, scale:  scale, angle: angle});
     });
   });
 
@@ -163,12 +276,12 @@ function threshold(src, threshold = 80) {
   return src;
 }
 
-function multiScaleTemplateMatching(src) {
+function multiScaleTemplateMatching(src,pc) {
   let bestMatch = {name: null, maxVal: 0, scale: 1, angle: 0, matchLoc: null};
 
   let result = new cv.Mat();
-  for (let i = 0; i < precomputedLogos.length; i++) {
-    let logo = precomputedLogos[i];
+  for (let i = 0; i < pc.length; i++) {
+    let logo = pc[i];
     cv.matchTemplate(src, logo.mat, result, cv.TM_CCOEFF_NORMED);
     let minMax = cv.minMaxLoc(result);
     if (typeof minMax.maxVal === 'number' && minMax.maxVal > logo.threshold) {
@@ -206,7 +319,8 @@ function processVideo() {
   vc.read(src);
   let result;
   result = dilate(threshold(gray(src), 150));
-  let bm = multiScaleTemplateMatching(result);
+  // let bm = multiScaleTemplateMatching(result,precomputedLogos);
+  let bm = multiScaleTemplateMatching(result,precomputedNFC);
   drawBoundingBox(result, bm);
   console.log(bm);
   cv.imshow("canvasOutput", result);
