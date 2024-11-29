@@ -40,14 +40,14 @@ const list_rupay_symbols = [
   {
       name: "Rupay",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_white_cropped.jpg",
-      threshold: 0.6,
+      threshold: 0.55,
       greyscale_threshold: 80,
       scale: 1
   },
   {
       name: "Rupay",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_black_cropped.jpg",
-      threshold: 0.6,
+      threshold: 0.55,
       greyscale_threshold: 200,
       scale: 1
   },
@@ -148,7 +148,7 @@ function get_NFC(){
 });
 }
   function proceedWithCamera() {
-    cv.imshow("canvasOutput2", rupayMats[0].mat);
+    // cv.imshow("canvasOutput2", rupayMats[0].mat);
     if (streaming) return;
     navigator.mediaDevices.getUserMedia({video: resolution, audio: false})
       .then(function(s) {
@@ -236,6 +236,7 @@ function precomputeScalesAndRotationsNFC(logo, mat) {
   rotatedLogo.delete();
 }
 
+let vid =null
 let src = null;
 let dstC1 = null;
 let dstC3 = null;
@@ -248,6 +249,7 @@ function startVideoProcessing() {
   dstC1 = new cv.Mat(height, width, cv.CV_8UC1);
   dstC3 = new cv.Mat(height, width, cv.CV_8UC3);
   dstC4 = new cv.Mat(height, width, cv.CV_8UC4);
+  vid =new cv.Mat(height, width, cv.CV_8UC4);
   requestAnimationFrame(processVideo);
 }
 
@@ -314,16 +316,25 @@ function drawBoundingBox(src, match) {
   }
 }
 
+
 function processVideo() {
   stats.begin();
   vc.read(src);
+  console.log(vid.type() === cv.CV_8UC4);
+  src.copyTo(vid);
   let result;
-  result = dilate(threshold(gray(src), 150));
-  // let bm = multiScaleTemplateMatching(result,precomputedLogos);
-  let bm = multiScaleTemplateMatching(result,precomputedNFC);
-  drawBoundingBox(result, bm);
-  console.log(bm);
-  cv.imshow("canvasOutput", result);
+  result = dilate(threshold(gray(vid), 150));
+  let bm1 = multiScaleTemplateMatching(result,precomputedRupay);
+  let bm2 = multiScaleTemplateMatching(result,precomputedNFC);
+if(bm1.name == "Rupay" &&  bm2.name == "NFC")
+{  let bm = multiScaleTemplateMatching(result,precomputedLogos);
+
+  drawBoundingBox(src, bm);
+}
+  drawBoundingBox(src, bm1);
+  drawBoundingBox(src, bm2);
+  // console.log(bm);
+  cv.imshow("canvasOutput", src);
   stats.end();
   requestAnimationFrame(processVideo);
 }
