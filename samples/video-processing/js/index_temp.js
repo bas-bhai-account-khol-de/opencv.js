@@ -25,31 +25,31 @@ const list_logos = [
       url: "https://storage.googleapis.com/avatar-system/test/Logos/Logos%20_HDFC_cropped.jpg",
       threshold: 0.51,
       greyscale_threshold: 100,
-      scale: 1.8
+      scale: 1.6
   },
   {
       name: "SBI",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/Logos%20_SBI-1_inverted.jpg",
       threshold: 0.55,
       greyscale_threshold: 100,
-      scale: 1.8
+      scale: 1.6
   },
 ];
 
 const list_rupay_symbols = [
   {
       name: "Rupay",
-      url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_white_cropped.jpg",
-      threshold: 0.55,
+      url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_white_cropped%20(1).jpg",
+      threshold: 0.6,
       greyscale_threshold: 80,
-      scale: 1
+      scale: 0.8
   },
   {
       name: "Rupay",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/Rupay_black_cropped.jpg",
-      threshold: 0.55,
+      threshold: 0.6,
       greyscale_threshold: 200,
-      scale: 1
+      scale: 0.7
   },
 
 ];
@@ -58,16 +58,16 @@ const list_nfc_symbols = [
   {
       name: "NFC",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/NFC_black.jpg",
-      threshold: 0.55,
+      threshold: 0.53,
       greyscale_threshold: 80,
-      scale: 1.1
+      scale: 0.56
   },
   {
       name: "NFC",
       url: "https://storage.googleapis.com/avatar-system/test/Logos/NFC_white.jpg",
-      threshold: 0.55,
-      greyscale_threshold: 200,
-      scale: 1.1
+      threshold: 0.53,
+      greyscale_threshold: 80,
+      scale: 0.8
   },
 
 ];
@@ -196,7 +196,7 @@ function precomputeScalesAndRotations(logo, mat) {
 }
 
 function precomputeScalesAndRotationsRupay(logo, mat) {
-  let scales = [0.3, 0.25,0.15];
+  let scales = [0.35,0.30,0.25];
   let angles = [0];
   let resizedLogo = new cv.Mat();
   let rotatedLogo = new cv.Mat();
@@ -216,8 +216,8 @@ function precomputeScalesAndRotationsRupay(logo, mat) {
   rotatedLogo.delete();
 }
 function precomputeScalesAndRotationsNFC(logo, mat) {
-  let scales = [0.3, 0.25,0.15];
-  let angles = [0];
+  let scales = [0.4,0.35,0.3];
+  let angles = [0,-10,10];
   let resizedLogo = new cv.Mat();
   let rotatedLogo = new cv.Mat();
 
@@ -326,7 +326,7 @@ function processVideo() {
   result = dilate(threshold(gray(vid), 150));
   let bm1 = multiScaleTemplateMatching(result,precomputedRupay);
   let bm2 = multiScaleTemplateMatching(result,precomputedNFC);
-if(bm1.name == "Rupay" &&  bm2.name == "NFC")
+if(bm1.name == "Rupay" ||  bm2.name == "NFC")
 {  let bm = multiScaleTemplateMatching(result,precomputedLogos);
 
   drawBoundingBox(src, bm);
