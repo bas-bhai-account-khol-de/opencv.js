@@ -1,16 +1,58 @@
-// Initial width and height calculations remain the same
-let width = window.innerWidth - 40;
-let height = Math.floor((width * 3) / 5);
-
-if (height > window.innerHeight - 40) {
+let width, height;
+function calculateDimensions() {
+  width = window.innerWidth - 40; // Account for padding
   height = window.innerHeight - 40;
-  width = Math.floor((height * 5) / 3);
-}
 
-let resolution = {
-  width: { exact: width },
-  height: { exact: height },
+  // For mobile devices in portrait mode (height > width)
+  if (window.innerHeight > window.innerWidth) {
+    // Use 3:4 aspect ratio which is common for mobile back cameras
+    const aspectRatio = 4 / 3;
+
+    // Calculate dimensions to maintain aspect ratio and fit screen
+    if (width * aspectRatio <= height) {
+      // Width is the limiting factor
+      height = width * aspectRatio;
+    } else {
+      // Height is the limiting factor
+      width = height / aspectRatio;
+    }
+  } else {
+    // For landscape mode, use original 5:3 ratio
+    if (height > window.innerHeight - 40) {
+      height = window.innerHeight - 40;
+      width = Math.floor((height * 5) / 3);
+    }
+  }
+
+  return { width: Math.floor(width), height: Math.floor(height) };
+}
+const dimensions = calculateDimensions();
+const constraints = {
+  video: {
+    width: { ideal: dimensions.width },
+    height: { ideal: dimensions.height },
+    facingMode: { ideal: "environment" },
+  },
+  audio: false,
 };
+
+// Update resize handler
+window.addEventListener("resize", function () {
+  const newDimensions = calculateDimensions();
+
+  const canvas = document.getElementById("canvasOutput");
+  canvas.width = newDimensions.width;
+  canvas.height = newDimensions.height;
+
+  if (streaming) {
+    width = newDimensions.width;
+    height = newDimensions.height;
+    // Update video element dimensions
+    video.setAttribute("width", width);
+    video.setAttribute("height", height);
+    startVideoProcessing();
+  }
+});
 
 // Logo detection state flags
 let rupayLogoDetected = false;
@@ -214,8 +256,9 @@ const startCameraForNFC = () => {
 
 function proceedWithCamera() {
   if (streaming) return;
+
   navigator.mediaDevices
-    .getUserMedia({ video: resolution, audio: false })
+    .getUserMedia(constraints)
     .then(function (s) {
       stream = s;
       video.srcObject = s;
@@ -229,8 +272,23 @@ function proceedWithCamera() {
     "canplay",
     function (ev) {
       if (!streaming) {
-        height = video.videoHeight;
-        width = video.videoWidth;
+        // Get actual video dimensions from stream
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+
+        // Calculate scaling to maintain aspect ratio
+        const videoAspect = settings.height / settings.width;
+        const containerAspect = height / width;
+
+        if (videoAspect > containerAspect) {
+          // Video is taller than container
+          height = width * videoAspect;
+        } else {
+          // Video is wider than container
+          width = height / videoAspect;
+        }
+
+        // Apply calculated dimensions
         video.setAttribute("width", width);
         video.setAttribute("height", height);
         streaming = true;
@@ -564,22 +622,18 @@ function initUI() {
 
 // Update canvas size on window resize
 window.addEventListener("resize", function () {
-  let newWidth = window.innerWidth - 40; // Subtracting padding
-  let newHeight = Math.floor((newWidth * 3) / 5); // Using 5:3 ratio
-
-  if (newHeight > window.innerHeight - 40) {
-    // Subtracting padding
-    newHeight = window.innerHeight - 40;
-    newWidth = Math.floor((newHeight * 5) / 3);
-  }
+  const newDimensions = calculateDimensions();
 
   const canvas = document.getElementById("canvasOutput");
-  canvas.width = newWidth;
-  canvas.height = newHeight;
+  canvas.width = newDimensions.width;
+  canvas.height = newDimensions.height;
 
   if (streaming) {
-    width = newWidth;
-    height = newHeight;
+    width = newDimensions.width;
+    height = newDimensions.height;
+    // Update video element dimensions
+    video.setAttribute("width", width);
+    video.setAttribute("height", height);
     startVideoProcessing();
   }
 });
